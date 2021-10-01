@@ -13,6 +13,8 @@ import assets.keycodes as keycodes
 
 import asyncio
 
+import os
+
 # from tkinter import *
 
 import matplotlib.pyplot as plt
@@ -34,6 +36,8 @@ android = AndroidViewer()
 # Initial score will be 0
 score = 0
 
+
+public_frame = 0
 
 
 # main loop constants
@@ -105,21 +109,32 @@ def close_event():
 
 
 
-def get_score():
-    global score
+def get_score(score):
+    text = pytesseract.image_to_string(score, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "")
+    print(text)
+    # cv2.imwrite("attempts/1/attempt_1_-%s-_%s.png"%(text, ticker), score)
+    with open("sample.txt", "a") as file_object:
+        # Append 'hello' at the end of file
+        file_object.write(text + "\n")
+    # global score
 
 
 def game_loop(ticker):
 
+    # ticker = 0
+
+    # while True:
     frames = android.get_next_frames()
 
     if frames is None:
-        pass
+        return False
 
     else:
 
         for frame in frames:
-
+            ticker += 1
+            global public_frame
+            public_frame = frame
             # 1440, 3040
             adds_removed = frame[0:(3040-200), 0:1440]
 
@@ -136,24 +151,6 @@ def game_loop(ticker):
             # print(imS.shape[0], imS.shape[1])
             sc = cv2.cvtColor(imS, cv2.COLOR_BGR2RGB)
             percentages = []
-
-            # for key in ground:
-            #     x, y = ground[key][0]
-            #     color_r = ground[key][1]
-            #     selection = sc[ x[0]:x[1], y[0]:y[1] ]
-            #
-            #
-            #     _ , du = masking(selection, color_r, key)
-            #     ground_mask_holder.append(du)
-
-
-
-
-            # print(type(mask_holder[0]))
-            # g_1 = cv2.add(mask_holder[0], mask_holder[1])
-            # # print(g_1)
-            # cv2.imshow("G_1", g_1)
-            # mask_holder[0], mask_holder[1], mask_holder[4], mask_holder[5], mask_holder[6], mask_holder[7]
 
 
 
@@ -206,12 +203,7 @@ def game_loop(ticker):
             # --psm 7, 8 and 9 work, 7 was picked at random
 
             if ticker%10==0:
-                text = pytesseract.image_to_string(score, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "")
-                print(text)
-                cv2.imwrite("attempts/1/attempt_1_-%s-_%s.png"%(text, ticker), score)
-                with open("sample.txt", "a") as file_object:
-                    # Append 'hello' at the end of file
-                    file_object.write(text + "\n")
+                get_score(score)
 
             # print("Text: %s\n      %s"%(text, pytesseract.image_to_string(score)))
 
@@ -219,13 +211,8 @@ def game_loop(ticker):
             cv2.imshow('Phone Viewer', resizer(imS, 300))
             cv2.imshow("Score", score)
             cv2.waitKey(1)
+            return True
 
-
-
-
-
-def video_stream(ticker):
-    pass
 
 
 
@@ -242,10 +229,52 @@ def video_stream(ticker):
 
 if __name__ == "__main__":
 
-    ticker = 0
+
 
     # android.set_screen_power_mode(0)
+    itt = 0
+    fps_list = []
 
-    while True:
-        game_loop(ticker)
-        ticker = ticker + 1
+    project_dir = os.path.dirname(__file__)
+    plot_style_filename = os.path.join(project_dir, 'assets\\mplstyles\\custom_1.mplstyle')
+
+
+    while itt <= 1000:
+
+
+
+        s = time.perf_counter()
+
+
+
+
+        suc = game_loop(itt)
+        if suc != False:
+            itt = itt + 1
+            elapsed = time.perf_counter() - s
+            fps_list.append(1/elapsed)
+            if itt%10 == 0:
+                print(itt)
+        # print(f"{__file__} executed in {elapsed:0.6f} seconds.")
+
+    min_value = min(fps_list)
+    max_value = max(fps_list)
+    average = np.average(fps_list)
+    median = np.median(fps_list)
+
+    # '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
+    plt.style.use(plot_style_filename)
+
+
+
+    plt.axhline(y=min_value, linestyle="--", color="grey", label="Min: "+str(round(min_value)))
+    plt.axhline(y=max_value, linestyle="-.", color="grey", label="Max: "+str(round(max_value)))
+    plt.axhline(y=average, linestyle=":", color="blue", label="Mean: "+str(round(average)))
+    plt.axhline(y=median, linestyle="--", color="blue", label="Median: "+str(round(median)))
+
+
+    plt.plot(fps_list)
+
+
+    plt.legend(loc=5, prop = {"size":10})
+    plt.show()
