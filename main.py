@@ -40,12 +40,13 @@ score_img = None
 
 public_frame = 0
 
+global_running = 1
 
 # main loop constants
-resize_size = 10
+resize_size = 15
 white = [[0,0,253], [255,10,255]]
 
-
+plot_data = {"FPS":[],"img recog time":[]}
 
 
 def connect_device():
@@ -110,17 +111,19 @@ def close_event():
 
 
 
-def get_score(aaa):
-    global score
-    score = pytesseract.image_to_string(aaa, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "")
-    print("SCORE ----------------- ",score)
-    # cv2.imwrite("attempts/1/attempt_1_-%s-_%s.png"%(text, ticker), score)
-    with open("sample.txt", "a") as file_object:
-        # Append 'hello' at the end of file
-        file_object.write(score + "\n")
+
 
 
 class score_getter(threading.Thread):
+
+    def get_score(self,aaa):
+        global score
+        score = pytesseract.image_to_string(aaa, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "")
+        print("SCORE ----------------- ",score)
+        # cv2.imwrite("attempts/1/attempt_1_-%s-_%s.png"%(text, ticker), score)
+        with open("sample.txt", "a") as file_object:
+            # Append 'hello' at the end of file
+            file_object.write(score + "\n")
 
     def run(self):
         global score_img
@@ -128,15 +131,19 @@ class score_getter(threading.Thread):
         while_true_time = time.time()
 
         while True:
-
+            if global_running == 0:
+                break
             if score_img is None:
                 continue
 
             # print(score_img)
             _tmp = time.time()
-            print("while_true_time =======", _tmp - while_true_time)
+
+            plot_data["img recog time"].append(_tmp - while_true_time)
+
+            # print("while_true_time =======", _tmp - while_true_time)
             while_true_time = _tmp
-            get_score(score_img)
+            self.get_score(score_img)
 
 class Game:
     def game_loop(self, ticker):
@@ -176,7 +183,7 @@ class Game:
 
                 edges = cv2.Canny(imS,100,1000)
 
-                cv2.imshow("Edges", resizer(edges, 200))
+
 
 
                 white_perc = calcPercentage(edges)
@@ -226,9 +233,10 @@ class Game:
                 #     get_score(score)
 
                 # print("Text: %s\n      %s"%(text, pytesseract.image_to_string(score)))
-
-
-                cv2.imshow('Phone Viewer', resizer(imS, 300))
+                # resizer(, 200)
+                # resizer(, 300)
+                cv2.imshow("Edges", edges)
+                cv2.imshow('Phone Viewer', imS )
                 cv2.imshow("Score", score)
                 cv2.waitKey(1)
                 return True
@@ -246,6 +254,50 @@ class Game:
     # for key in tot_before:
     #     tot[key] = [[(np.multiply(tot_before[key][0][0], resize_size/100)).astype(int), (np.multiply(tot_before[key][0][1], resize_size/100)).astype(int)], tot_before[key][1]]
 
+class graph:
+    def create_graph(self, data):
+        project_dir = os.path.dirname(__file__)
+        plot_style_filename = os.path.join(project_dir, 'assets\\mplstyles\\custom_1.mplstyle')
+        vals = {"FPS":[],"img recog time":[]}
+        for key, value in data.items():
+            vals[key].append(min(value))
+            vals[key].append(max(value))
+            vals[key].append(np.average(value))
+            vals[key].append(np.median(value))
+
+
+
+        # '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
+
+
+
+        plt.style.use(plot_style_filename)
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+
+
+        ax1.set_title("FPS of game")
+        ax1.axhline(y=vals["FPS"][0], linestyle="--", color="grey", label="Min: "+str(round(vals["FPS"][0])))
+        ax1.axhline(y=vals["FPS"][1], linestyle="-.", color="grey", label="Max: "+str(round(vals["FPS"][1])))
+        ax1.axhline(y=vals["FPS"][2], linestyle=":", color="blue", label="Mean: "+str(round(vals["FPS"][2])))
+        ax1.axhline(y=vals["FPS"][3], linestyle="--", color="blue", label="Median: "+str(round(vals["FPS"][3])))
+        ax1.plot(data["FPS"])
+
+        ax2.plot(data["img recog time"])
+        ax2.axhline(y=vals["img recog time"][0], linestyle="--", color="grey", label="Min: "+str(round(vals["img recog time"][0], 3)))
+        ax2.axhline(y=vals["img recog time"][1], linestyle="-.", color="grey", label="Max: "+str(round(vals["img recog time"][1], 3)))
+        ax2.axhline(y=vals["img recog time"][2], linestyle=":", color="blue", label="Mean: "+str(round(vals["img recog time"][2], 3)))
+        ax2.axhline(y=vals["img recog time"][3], linestyle="--", color="blue", label="Median: "+str(round(vals["img recog time"][3], 3)))
+        ax2.set_title("Score recognition time")
+
+
+
+        ax1.legend(loc=5, prop = {"size":10})
+        ax2.legend(loc=5, prop = {"size":10})
+        plt.show()
+
+
+
+
 
 if __name__ == "__main__":
 
@@ -253,16 +305,12 @@ if __name__ == "__main__":
 
     # android.set_screen_power_mode(0)
     itt = 0
-    fps_list = []
-
-    project_dir = os.path.dirname(__file__)
-    plot_style_filename = os.path.join(project_dir, 'assets\\mplstyles\\custom_1.mplstyle')
 
     score_getter().start()
 
     gme = Game()
 
-    while itt <= 5000:
+    while itt <= 100:
 
 
 
@@ -275,29 +323,10 @@ if __name__ == "__main__":
         if suc != False:
             itt = itt + 1
             elapsed = time.perf_counter() - s
-            fps_list.append(1/elapsed)
+            plot_data["FPS"].append(1/elapsed)
             if itt%10 == 0:
                 print(itt)
         # print(f"{__file__} executed in {elapsed:0.6f} seconds.")
+    global_running = 0
 
-    min_value = min(fps_list)
-    max_value = max(fps_list)
-    average = np.average(fps_list)
-    median = np.median(fps_list)
-
-    # '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
-    plt.style.use(plot_style_filename)
-
-
-
-    plt.axhline(y=min_value, linestyle="--", color="grey", label="Min: "+str(round(min_value)))
-    plt.axhline(y=max_value, linestyle="-.", color="grey", label="Max: "+str(round(max_value)))
-    plt.axhline(y=average, linestyle=":", color="blue", label="Mean: "+str(round(average)))
-    plt.axhline(y=median, linestyle="--", color="blue", label="Median: "+str(round(median)))
-
-
-    plt.plot(fps_list)
-
-
-    plt.legend(loc=5, prop = {"size":10})
-    plt.show()
+    graph().create_graph(plot_data)
