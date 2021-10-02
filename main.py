@@ -12,6 +12,7 @@ from assets.viewer import AndroidViewer
 import assets.keycodes as keycodes
 
 import asyncio
+import threading
 
 import os
 
@@ -35,7 +36,7 @@ android = AndroidViewer()
 
 # Initial score will be 0
 score = 0
-
+score_img = None
 
 public_frame = 0
 
@@ -109,109 +110,128 @@ def close_event():
 
 
 
-def get_score(score):
-    text = pytesseract.image_to_string(score, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "")
-    print(text)
+def get_score(aaa):
+    global score
+    score = pytesseract.image_to_string(aaa, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "")
+    print("SCORE ----------------- ",score)
     # cv2.imwrite("attempts/1/attempt_1_-%s-_%s.png"%(text, ticker), score)
     with open("sample.txt", "a") as file_object:
         # Append 'hello' at the end of file
-        file_object.write(text + "\n")
-    # global score
+        file_object.write(score + "\n")
 
 
-def game_loop(ticker):
+class score_getter(threading.Thread):
 
-    # ticker = 0
+    def run(self):
+        global score_img
 
-    # while True:
-    frames = android.get_next_frames()
+        while_true_time = time.time()
 
-    if frames is None:
-        return False
+        while True:
 
-    else:
+            if score_img is None:
+                continue
 
-        for frame in frames:
-            ticker += 1
-            global public_frame
-            public_frame = frame
-            # 1440, 3040
-            adds_removed = frame[0:(3040-200), 0:1440]
+            # print(score_img)
+            _tmp = time.time()
+            print("while_true_time =======", _tmp - while_true_time)
+            while_true_time = _tmp
+            get_score(score_img)
 
-            hor = 400
+class Game:
+    def game_loop(self, ticker):
 
-            score = frame[580:(3040-2300), hor:(1440-hor)]
+        # ticker = 0
 
-            # score = resizer(score, resize_size)
+        # while True:
+        frames = android.get_next_frames()
 
+        if frames is None:
+            return False
 
+        else:
+            global public_frame, score_img
 
+            for frame in frames:
+                ticker += 1
+                public_frame = frame
+                # 1440, 3040
+                adds_removed = frame[0:(3040-200), 0:1440]
 
-            imS = resizer(adds_removed, resize_size)
-            # print(imS.shape[0], imS.shape[1])
-            sc = cv2.cvtColor(imS, cv2.COLOR_BGR2RGB)
-            percentages = []
+                hor = 400
 
+                score = frame[580:(3040-2300), hor:(1440-hor)]
 
-
-            edges = cv2.Canny(imS,100,1000)
-
-            cv2.imshow("Edges", resizer(edges, 200))
-
-
-            white_perc = calcPercentage(edges)
-
-
-            if white_perc < 0.6:
-                is_dead = 8
-                print("DEAD")
-            else:
-                is_dead = 0
-
-            edges_height, edges_width = edges.shape
-
-            # print(edges_height, edges_width)
-
-            # score = imS[60:284-205, 30:144-30]
-
-            # score = cv2.cvtColor(score, cv2.COLOR_BGR2GRAY)
-
-            _ , score = masking(score, white, "bloop")
-
-            # PIL_version_score = Image.fromarray(np.uint8(score)).convert('RGB')
-
-            # score
-
-            # score = (255-score)
-
-            blur_amount = 11
-
-            score = cv2.cvtColor(score, cv2.COLOR_BGR2RGB)
-
-            score = cv2.GaussianBlur(score,(blur_amount,blur_amount),cv2.BORDER_DEFAULT)
-
-
-            score = cv2.threshold(score,127,255,cv2.THRESH_BINARY)[1]
-
-
-
-            # score = Image.frombytes('RGB', score.shape[:2], score, 'raw', 'BGR', 0, 0)
+                # score = resizer(score, resize_size)
 
 
 
 
-            # --psm 7, 8 and 9 work, 7 was picked at random
-
-            if ticker%10==0:
-                get_score(score)
-
-            # print("Text: %s\n      %s"%(text, pytesseract.image_to_string(score)))
+                imS = resizer(adds_removed, resize_size)
+                # print(imS.shape[0], imS.shape[1])
+                sc = cv2.cvtColor(imS, cv2.COLOR_BGR2RGB)
+                percentages = []
 
 
-            cv2.imshow('Phone Viewer', resizer(imS, 300))
-            cv2.imshow("Score", score)
-            cv2.waitKey(1)
-            return True
+
+                edges = cv2.Canny(imS,100,1000)
+
+                cv2.imshow("Edges", resizer(edges, 200))
+
+
+                white_perc = calcPercentage(edges)
+
+
+                if white_perc < 0.6:
+                    is_dead = 8
+                    print("DEAD")
+                else:
+                    is_dead = 0
+
+                edges_height, edges_width = edges.shape
+
+                # print(edges_height, edges_width)
+
+                # score = imS[60:284-205, 30:144-30]
+
+                # score = cv2.cvtColor(score, cv2.COLOR_BGR2GRAY)
+
+                _ , score = masking(score, white, "bloop")
+
+                # PIL_version_score = Image.fromarray(np.uint8(score)).convert('RGB')
+
+                # score
+
+                # score = (255-score)
+
+                blur_amount = 11
+
+                score_img = cv2.cvtColor(score, cv2.COLOR_BGR2RGB)
+
+                score_img = cv2.GaussianBlur(score_img,(blur_amount,blur_amount),cv2.BORDER_DEFAULT)
+
+
+                score_img = cv2.threshold(score_img,127,255,cv2.THRESH_BINARY)[1]
+
+
+
+                # score = Image.frombytes('RGB', score.shape[:2], score, 'raw', 'BGR', 0, 0)
+
+
+
+
+                # --psm 7, 8 and 9 work, 7 was picked at random
+
+                # if ticker%10==0:
+                #     get_score(score)
+
+                # print("Text: %s\n      %s"%(text, pytesseract.image_to_string(score)))
+
+
+                cv2.imshow('Phone Viewer', resizer(imS, 300))
+                cv2.imshow("Score", score)
+                cv2.waitKey(1)
+                return True
 
 
 
@@ -238,8 +258,11 @@ if __name__ == "__main__":
     project_dir = os.path.dirname(__file__)
     plot_style_filename = os.path.join(project_dir, 'assets\\mplstyles\\custom_1.mplstyle')
 
+    score_getter().start()
 
-    while itt <= 1000:
+    gme = Game()
+
+    while itt <= 5000:
 
 
 
@@ -248,7 +271,7 @@ if __name__ == "__main__":
 
 
 
-        suc = game_loop(itt)
+        suc = gme.game_loop(itt)
         if suc != False:
             itt = itt + 1
             elapsed = time.perf_counter() - s
