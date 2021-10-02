@@ -121,9 +121,9 @@ class score_getter(threading.Thread):
         score = pytesseract.image_to_string(aaa, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "")
         print("SCORE ----------------- ",score)
         # cv2.imwrite("attempts/1/attempt_1_-%s-_%s.png"%(text, ticker), score)
-        with open("sample.txt", "a") as file_object:
-            # Append 'hello' at the end of file
-            file_object.write(score + "\n")
+        # with open("sample.txt", "a") as file_object:
+        #     # Append 'hello' at the end of file
+        #     file_object.write(score + "\n")
 
     def run(self):
         global score_img
