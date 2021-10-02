@@ -31,3 +31,17 @@ figure.edgecolor: 0f0f0f
 
 savefig.facecolor: 0f0f0f
 savefig.edgecolor: 0f0f0f
+
+
+
+
+## The figure subplot parameters.  All dimensions are a fraction of the figure width and height.
+
+
+figure.subplot.left:   0.05   # the left side of the subplots of the figure
+figure.subplot.right:  0.99   # the right side of the subplots of the figure
+figure.subplot.bottom: 0.05   # the bottom of the subplots of the figure
+figure.subplot.top:    0.90   # the top of the subplots of the figure
+figure.subplot.wspace: 0.1    # the amount of width reserved for space between subplots,
+                              # expressed as a fraction of the average axis width
+figure.subplot.hspace: 0.2    # the amount of height reserved for space between subplots,
