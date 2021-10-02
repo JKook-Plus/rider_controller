@@ -1,4 +1,4 @@
-#Author: JKook (https://github.com/JKookaburra)
+# Author: JKook (https://github.com/JKookaburra)
 
 
 lines.linewidth: 1
@@ -10,8 +10,7 @@ axes.prop_cycle: cycler('color', ['79B9C9', '9562F5', 'ab41ae', 'E38F8B', 'AE414
 axes.labelsize: large
 axes.axisbelow: true
 axes.grid: true
-# axes.edgecolor: 1f1f1f
-axes.linewidth: 3.0
+ axes.linewidth: 3.0
 axes.titlesize: x-large
 
 text.color: e3e3e3
@@ -32,34 +31,3 @@ figure.edgecolor: 0f0f0f
 
 savefig.facecolor: 0f0f0f
 savefig.edgecolor: 0f0f0f
-
-
-
-
-
-
-
-# patch.edgecolor: 1f1f1f
-# patch.linewidth: 0.5
-#
-# svg.fonttype: path
-#
-# grid.linestyle: -
-# grid.linewidth: 1.0
-# grid.color: cbcbcb
-#
-# xtick.major.size: 0
-# xtick.minor.size: 0
-# ytick.major.size: 0
-# ytick.minor.size: 0
-#
-# font.size:14.0
-#
-# savefig.edgecolor: 1f1f1f
-# savefig.facecolor: 1f1f1f
-#
-# figure.subplot.left: 0.08
-# figure.subplot.right: 0.95
-# figure.subplot.bottom: 0.07
-# figure.facecolor: 1f1f1f
-#
