@@ -139,6 +139,13 @@ class ControlMixin:
         self.control_socket.send(self._build_touch_message(x=x_coord, y=y_coord, action=self.ACTION_DOWN))
         self.control_socket.send(self._build_touch_message(x=x_coord, y=y_coord, action=self.ACTION_UP))
 
+
+    def click_down(self, x_coord, y_coord):
+        self.control_socket.send(self._build_touch_message(x=x_coord, y=y_coord, action=self.ACTION_DOWN))
+
+    def click_up(self, x_coord, y_coord):
+        self.control_socket.send(self._build_touch_message(x=x_coord, y=y_coord, action=self.ACTION_UP))
+
     def swipe(self, start_x, start_y, end_x, end_y):
         self.control_socket.send(self._build_touch_message(x=start_x, y=start_y, action=self.ACTION_DOWN))
         next_x = start_x
