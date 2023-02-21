@@ -34,6 +34,7 @@ Install requirements.txt
 
 `pip install -r requirements.txt`
 
+Install [Tesseract-OCR](https://github.com/UB-Mannheim/tesseract/wiki) into `C:\Program Files\Tesseract-OCR\tesseract.exe`.
 
 Add "screpy-server.jar" to assets/server/
 
