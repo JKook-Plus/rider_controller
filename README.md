@@ -36,6 +36,7 @@ Install requirements.txt
 
 Install [Tesseract-OCR](https://github.com/UB-Mannheim/tesseract/wiki) into `C:\Program Files\Tesseract-OCR\tesseract.exe`.
 
+Copy/move [smash_hit_font.traineddata](../assets/smash_hit_font.traineddata) into `C:\Program Files\Tesseract-OCR\tessdata\` directory.
 
 
 
