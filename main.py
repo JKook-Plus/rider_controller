@@ -8,32 +8,32 @@ from PIL import ImageDraw, ImageTk, Image
 import numpy as np
 
 import cv2
-from assets.viewer import AndroidViewer
-import assets.keycodes as keycodes
+
+# TO BE REPLACED
+
+# from assets.viewer import AndroidViewer
+# import assets.keycodes as keycodes
+
+import scrcpy
 
 import asyncio
 import threading
 
 import os
 
-# from tkinter import *
-
 import matplotlib.pyplot as plt
-
-# import tesserocr
-
-# C:\Program Files\Tesseract-OCR\tessdata
 
 import pytesseract
 
-from gym import Env
-from gym.spaces import Discrete, Box
+from gymnasium import Env
+
+from gymnasium.spaces import Discrete, Box
 
 import tensorflow as tf
 
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, Rescaling, Conv2D
-from tensorflow.keras.optimizers import Adam
+from keras.models import Sequential
+from keras.layers import Dense, Flatten, Rescaling, Conv2D
+from keras.optimizers import Adam
 
 from rl.agents import DQNAgent
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
@@ -44,45 +44,19 @@ import random
 from datetime import datetime
 
 
-coords = []
-
-
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
-android = AndroidViewer()
-
-
-# Initial score will be 0
-score = 0
-score_img = None
-
-public_frame = 0
-
-global_running = 1
-global_is_dead = 80
-globel_score_diff = 0
+public_frames = []
 
 
 
-# main loop constants
-resize_size = 10
-white = [[0,0,253], [255,10,255]]
+def get_first_device_connected():
+    client = Client(host="127.0.0.1", port=5037)
+    devices = client.devices()
+    device = devices[0]
+    return (device.serial)
 
-plot_data = {
-"FPS":[],
-"img recog time":[],
-"white percentage":[],
-"score":[]}
-
-
-def connect_device():
-    adb = Client(host='127.0.0.1',port=5037)
-    devices = adb.devices()
-    if len(devices) == 0:
-        print("No Devices Attached")
-        quit()
-    return devices[0]
-
+def on_image(frame):
+    if frame is not None:
+        public_frames.append(frame)
 
 def resizer(image, scale_percent):
     width = int(image.shape[1] * scale_percent / 100)
@@ -91,7 +65,6 @@ def resizer(image, scale_percent):
     dsize = (width, height)
     imS = cv2.resize(image, dsize, interpolation=cv2.INTER_NEAREST )
     return imS
-
 
 def masking(view, ra, name):
     lower = np.array(ra[0])
@@ -105,7 +78,6 @@ def masking(view, ra, name):
 
     # cv2.waitKey(1)
     return(round(cv2.countNonZero(mask)/mask.size*100,0), mask)
-
 
 def calcPercentage(img): # returns the percentage of white in a binary image
     dead_color = [224, 224, 244]
@@ -247,6 +219,77 @@ def drawCircle(event, x, y, flags, param):
         #
         # cv2.imshow('image', imgCopy)
 
+def build_model(states, actions):
+    model = Sequential()
+    model.add(tf.keras.layers.Flatten(input_shape=(1, states)))
+    # model.add(tf.keras.layers.Convolution2D(32, kernel_size=(6, 6), input_shape=(1, 228, 108, 1), activation="relu", data_format="channels_last"))
+    # model.add(tf.keras.layers.Convolution2D(16, (4, 4), activation="relu", data_format="channels_last"))
+    # model.add(tf.keras.layers.Convolution2D(64, (3, 3), activation="relu", data_format="channels_last"))
+    # model.add(tf.keras.layers.Flatten())
+    # model.add(tf.keras.layers.Conv2D(128, (3, 3), activation="relu", data_format="channels_last"))
+    model.add(tf.keras.layers.Dense(64, activation="relu"))
+    model.add(tf.keras.layers.Dense(64, activation="relu"))
+    model.add(tf.keras.layers.Dense(64, activation="relu"))
+    model.add(tf.keras.layers.Dense(64, activation="relu"))
+    # model.add(tf.keras.layers.Dense(128, activation="relu"), data_format="channels_last")
+    model.add(tf.keras.layers.Dense(actions, activation="linear"))
+
+
+
+
+    # model = Sequential()
+    # # model.add(tf.keras.layers.Flatten(input_shape=(1, states)))
+    # model.add(tf.keras.layers.Convolution2D(32, kernel_size=(6, 6), input_shape=(1, 228, 108, 1), activation="relu", data_format="channels_last"))
+    # model.add(tf.keras.layers.Convolution2D(16, (4, 4), activation="relu", data_format="channels_last"))
+    # # model.add(tf.keras.layers.Convolution2D(64, (3, 3), activation="relu", data_format="channels_last"))
+    # model.add(tf.keras.layers.Flatten())
+    # # model.add(tf.keras.layers.Conv2D(128, (3, 3), activation="relu", data_format="channels_last"))
+    # model.add(tf.keras.layers.Dense(512, activation="relu"))
+    # model.add(tf.keras.layers.Dense(256, activation="relu"))
+    # # model.add(tf.keras.layers.Dense(128, activation="relu"), data_format="channels_last")
+    # model.add(tf.keras.layers.Dense(actions, activation="linear"))
+    return model
+
+def build_agent(model, actions):
+    policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr="eps", value_max=1., value_min=1., value_test=2., nb_steps=10000)
+    memory = SequentialMemory(limit=50000, window_length=1)
+    dqn = DQNAgent(model=model, memory=memory, policy=policy, nb_actions=actions, nb_steps_warmup=10, target_model_update=1e-2)
+
+    return dqn
+
+coords = []
+
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+dev_name = get_first_device_connected()
+
+client = scrcpy.Client(device=dev_name, max_fps=30)
+
+client.add_listener(scrcpy.EVENT_FRAME, on_image)
+
+client.start(threaded=True)
+
+print("Connected to: {0}".format(dev_name))
+
+# Initial score will be 0
+score = 0
+score_img = None
+
+global_running = 1
+global_is_dead = 80
+globel_score_diff = 0
+
+
+# main loop constants
+resize_size = 10
+white = [[0,0,253], [255,10,255]]
+
+plot_data = {
+"FPS":[],
+"img recog time":[],
+"white percentage":[],
+"score":[]}
+
 class graph:
     def create_graph(self, data):
         project_dir = os.path.dirname(__file__)
@@ -263,11 +306,7 @@ class graph:
             vals[key].append(np.average(value))
             vals[key].append(np.median(value))
 
-
-
         # '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
-
-
 
         plt.style.use(plot_style_filename)
         plt.figure(figsize=(1920/100, 1080/100))
@@ -308,10 +347,6 @@ class graph:
         ax4.set_title("white percentage")
 
 
-
-
-
-
         ax1.legend(loc=5, prop = {"size":10})
         ax2.legend(loc=5, prop = {"size":10})
         ax3.legend(loc=5, prop = {"size":10})
@@ -327,14 +362,12 @@ class graph:
 
 class score_getter(threading.Thread):
 
-    def get_score(self,aaa):
+    def get_score(self,score_img):
         global score, globel_score_diff
 
         # removes ♀ and newlines
 
-        temp_score = pytesseract.image_to_string(aaa, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "").replace(" ","")
-
-
+        temp_score = pytesseract.image_to_string(score_img, lang='1', config='--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789+').replace("\n", "").replace("\x0c", "").replace(" ","")
 
         if temp_score != "":
 
@@ -343,27 +376,16 @@ class score_getter(threading.Thread):
             try:
                 eval_score = int(eval(temp_score))
                 if ((eval_score-score)<=30):
-                    print("{0}, {1} = {2}".format(score, eval_score, (eval_score-score)))
+                    # print("{0}, {1} = {2}".format(score, eval_score, (eval_score-score)))
                     score = eval_score
                     globel_score_diff = (eval_score-score)
                     # print(globel_score_diff)
                     plot_data["score"].append(eval_score)
                     # print("SCORE: ",score, eval_score)
 
-
-
             except Exception as e:
                 print(e)
                 eval_score = 0
-
-        # else:
-        #     pass
-            # print("SCORE: Null")
-
-        # cv2.imwrite("attempts/1/attempt_1_-%s-_%s.png"%(text, str_time), score)
-        # with open("sample.txt", "a") as file_object:
-        #     # Append 'hello' at the end of file
-        #     file_object.write(score + "\n")
 
     def run(self):
         global score_img
@@ -386,44 +408,6 @@ class score_getter(threading.Thread):
             while_true_time = _tmp
             self.get_score(score_img)
 
-def build_model(states, actions):
-    model = Sequential()
-    model.add(tf.keras.layers.Flatten(input_shape=(1, states)))
-    # model.add(tf.keras.layers.Convolution2D(32, kernel_size=(6, 6), input_shape=(1, 228, 108, 1), activation="relu", data_format="channels_last"))
-    # model.add(tf.keras.layers.Convolution2D(16, (4, 4), activation="relu", data_format="channels_last"))
-    # model.add(tf.keras.layers.Convolution2D(64, (3, 3), activation="relu", data_format="channels_last"))
-    # model.add(tf.keras.layers.Flatten())
-    # model.add(tf.keras.layers.Conv2D(128, (3, 3), activation="relu", data_format="channels_last"))
-    model.add(tf.keras.layers.Dense(64, activation="relu"))
-    model.add(tf.keras.layers.Dense(64, activation="relu"))
-    model.add(tf.keras.layers.Dense(64, activation="relu"))
-    model.add(tf.keras.layers.Dense(64, activation="relu"))
-    # model.add(tf.keras.layers.Dense(128, activation="relu"), data_format="channels_last")
-    model.add(tf.keras.layers.Dense(actions, activation="linear"))
-
-
-
-
-    # model = Sequential()
-    # # model.add(tf.keras.layers.Flatten(input_shape=(1, states)))
-    # model.add(tf.keras.layers.Convolution2D(32, kernel_size=(6, 6), input_shape=(1, 228, 108, 1), activation="relu", data_format="channels_last"))
-    # model.add(tf.keras.layers.Convolution2D(16, (4, 4), activation="relu", data_format="channels_last"))
-    # # model.add(tf.keras.layers.Convolution2D(64, (3, 3), activation="relu", data_format="channels_last"))
-    # model.add(tf.keras.layers.Flatten())
-    # # model.add(tf.keras.layers.Conv2D(128, (3, 3), activation="relu", data_format="channels_last"))
-    # model.add(tf.keras.layers.Dense(512, activation="relu"))
-    # model.add(tf.keras.layers.Dense(256, activation="relu"))
-    # # model.add(tf.keras.layers.Dense(128, activation="relu"), data_format="channels_last")
-    # model.add(tf.keras.layers.Dense(actions, activation="linear"))
-    return model
-
-def build_agent(model, actions):
-    policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr="eps", value_max=1., value_min=1., value_test=2., nb_steps=10000)
-    memory = SequentialMemory(limit=50000, window_length=1)
-    dqn = DQNAgent(model=model, memory=memory, policy=policy, nb_actions=actions, nb_steps_warmup=10, target_model_update=1e-2)
-
-    return dqn
-
 class Game(Env):
     def __init__(self):
         self.action_space = Discrete(2)
@@ -436,8 +420,6 @@ class Game(Env):
         _temp = cv2.calcHist([cv2.cvtColor(self.title_screen, cv2.COLOR_BGR2RGB)], [0,1], None, [180,256], [0,180,0,256])
         self.title_screen_hist = cv2.normalize(_temp, _temp, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
 
-
-
         score_getter().start()
         # android.tap(560, 1300)
 
@@ -445,25 +427,30 @@ class Game(Env):
     def step(self, action=0):
         # print( "THREAD STEP: ", threading.current_thread().ident)
         # print("Action: {0}".format(action))
-        while True:
-            frames = android.get_next_frames()
 
-            if frames is None:
+        global public_frames, score_img, global_is_dead, score, globel_score_diff
+
+        while True:
+            # frames = android.get_next_frames()
+
+            if len(public_frames) == 0:
                 continue
 
-            else:
-                # print (len(frames))
-                global public_frame, score_img, global_is_dead, score, globel_score_diff
 
-                for frame in frames:
+            else:
+                print(len(public_frames))
+                # If the amount of frames are starting to back stuff get the last 2 (to remove massive spikes)
+                if len(public_frames) > 2:
+                    public_frames = public_frames[-2:]
+                
+                for frame in public_frames:
                     # ticker += 1
-                    public_frame = frame
                     # 1440, 3040   (1080, 2280)
                     adds_removed = frame[0:(3040-200), 0:1440]
 
                     hor = 200
 
-                    score_cropped = frame[580-150:740-150, hor:(1080-hor)]
+                    score_cropped = frame[430-100:590-100, hor:(1080-hor)]
 
                     # score = resizer(score, resize_size)
 
@@ -499,12 +486,6 @@ class Game(Env):
 
                     perc_diff = (cv2.compareHist(self.title_screen_hist, normalized_hist_challanges, cv2.HISTCMP_BHATTACHARYYA))
 
-                    # if (perc_diff<=0.2):
-                    #     android.tap(560, 1300)
-                    #     return(self.state)
-
-                    # print(self.reset_ticker)
-
                     if (white_perc >= 150) or ((perc_diff<=0.2) and (self.reset_ticker >= 100)):
                         global_is_dead = 80
                         print("DEAD", self.reset_ticker)
@@ -515,22 +496,14 @@ class Game(Env):
                         done = False
 
                     if (self.clicked_state == 0) and (action == 1):
-                        android.click_down(560, 1300)
-                    elif (self.clicked_state == 1) and (action == 0):
-                        android.click_up(560, 1300)
+                        client.control.touch(560, 1300, scrcpy.ACTION_DOWN)
 
+                    elif (self.clicked_state == 1) and (action == 0):
+                        client.control.touch(560, 1300, scrcpy.ACTION_UP)
 
                     if global_is_dead > 0:
                         # print("minused one")
                         global_is_dead = global_is_dead - 1
-
-
-
-
-
-                    # (228, 108)
-
-
 
                     score_img = cv2.threshold(score_img,127,255,cv2.THRESH_BINARY)[1]
 
@@ -563,7 +536,6 @@ class Game(Env):
                         # print(type(self.reward), self.reward)
                         self.reward -= 0.5
 
-
                     # print(self.reward)
                     # print("\n\n\n")
                     self.reset_ticker += 1
@@ -573,13 +545,10 @@ class Game(Env):
                     # print(imS.shape)
                     # print(imS)
 
-
                     # 228, 108
                     # print(self.state)
                     return (self.state.flatten(), self.reward, done, info)
                     # return ((np.expand_dims(self.state, axis=-1)), self.reward, done, info)
-
-
 
     def reset(self):
 
@@ -603,17 +572,17 @@ class Game(Env):
         while num_to_complete >= 0:
             # print("THREAD RESET: ", threading.current_thread().ident)
             # print("num_to_complete: ", num_to_complete)
-            frames = android.get_next_frames()
+            # frames = android.get_next_frames()
             # print(frames.length())
 
-            if frames is None:
+            if len(public_frames) == 0:
                 continue
 
             else:
                 # print("111111111", len(frames))
             # if not (frames is None):
                 # print(len(frames))
-                for frame in frames:
+                for frame in public_frames:
                     # print("222222222222")
                     adds_removed = frame[0:(3040-200), 0:1440]
 
@@ -677,7 +646,8 @@ class Game(Env):
 
 
 
-        android.tap(560, 1300)
+        client.control.touch(560, 1300, scrcpy.ACTION_DOWN)
+        client.control.touch(560, 1300, scrcpy.ACTION_UP)
         print("Finished reset")
         # print(self.state.shape)
         return(self.state.flatten())
@@ -733,50 +703,8 @@ if __name__ == "__main__":
             gme.reset()
             print("Reset Env")
 
-
             break
 
-
-
-    # model = build_model(24624, gme.action_space.n)
-    # model.summary()
-    #
-    # dqn = build_agent(model, gme.action_space.n)
-    # dqn.compile(Adam(lr=1e-3), metrics=["mae"])
-    # dqn.fit(gme, nb_steps=50000, visualize=False, verbose=1)
-    #
-    #
-    # dqn.save_weights("attempts/sqn_weights.h5f", overwrite=True)
-    #
-
-
     global_running = 0
-            # except Exception as e:
-            #     pass
-                # print(e)
-
-    # while itt <= 500:
-    #
-    #
-    #
-    #     s = time.perf_counter()
-    #
-    #
-    #
-    #
-    #     out_pack = gme.step(itt, random.randint(0, 1))
-    #
-    #
-    #     if out_pack != None:
-    #         print("action space: ", gme.action_space.sample())
-    #         # print(out_pack)
-    #         (state, reward, done, info) = out_pack
-    #         itt = itt + 1
-    #         elapsed = time.perf_counter() - s
-    #         plot_data["FPS"].append(1/elapsed)
-    #         # if itt%10 == 0:
-    #         #     print(f"Frame numer: {itt}")
-    #     # print(f"{__file__} executed in {elapsed:0.6f} seconds.")
-    # global_running = 0
 
     graph().create_graph(plot_data)
