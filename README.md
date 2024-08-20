@@ -10,6 +10,10 @@ A machine learning algorithm that controls an Android device running the mobile 
 
 A save editor for this program can be usefull. ([rider_save_editor](https://github.com/JKook-Plus/rider_save_editor))
 
+## Current progress
+
+[![Rider AI progress video playlist](https://img.youtube.com/vi/ORKzZP2Wh7g/hqdefault.jpg)](https://www.youtube.com/watch?v=ORKzZP2Wh7g&list=PLG_gvB52HokF5D5FtaK3hG9T5k8HMVEQ1)
+
 # Setup
 
 ### PC side
